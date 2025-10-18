@@ -2,7 +2,7 @@ import { defineConfig } from 'vitepress'
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
-  title: "Astral-Blog",
+  title: "🌟Astral-Blog",
   description: "A HDUer's blog with corroding passion",
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
@@ -31,7 +31,8 @@ export default defineConfig({
     ],
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/Marastraluster' }
+      { icon: 'github', link: 'https://github.com/Marastraluster' },
+      { icon: 'bilibili', link: 'https://space.bilibili.com/453797318?spm_id_from=333.1007.0.0' }
     ]
   }
 })
