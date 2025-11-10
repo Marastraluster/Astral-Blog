@@ -1,0 +1,27 @@
+name: Deploy Static VitePress Blog
+
+on:
+  push:
+    branches:
+      - master  # 监听 master 分支
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ 检出仓库代码
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 2️⃣ 将本地构建好的静态 HTML 部署到服务器
+      - name: Deploy to server
+        uses: appleboy/scp-action@v0.1.5
+        with:
+          host: ${{ secrets.SERVER_HOST }}               # GitHub Secrets 中的服务器域名/IP
+          username: ${{ secrets.SERVER_USER }}           # GitHub Secrets 中的用户名
+          key: ${{ secrets.SERVER_SSH_KEY }}             # GitHub Secrets 中的私钥
+          port: ${{ secrets.SERVER_PORT }}               # SSH 端口
+          source: "docs/.vitepress/dist/*"              # 仓库中相对路径（不要 / 开头）
+          target: "/www/wwwroot/blog.astraluster.top"   # 服务器目标目录，可使用绝对路径
+          rm: true                                      # 先清空服务器目录，保持同步
