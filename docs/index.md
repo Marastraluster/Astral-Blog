@@ -32,6 +32,6 @@ features:
   - title: Playing Triple-A Games
     details: Cyberpunk2077
   - title: Animation Amateur
-    details: 
+    details: 鬼滅の刃
 ---
 
