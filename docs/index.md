@@ -28,9 +28,9 @@ hero:
 
 features:
   - title: Love Programming
-    details: 
+    details: C,Python and IDA
   - title: Playing Triple-A Games
-    details: 
+    details: Cyberpunk2077
   - title: Animation Amateur
     details: 
 ---
