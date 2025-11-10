@@ -10,20 +10,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      # 1️⃣ 检出代码
+      - name: Checkout repository
         uses: actions/checkout@v3
 
+      # 2️⃣ 设置 Node
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
           node-version: 20
 
+      # 3️⃣ 构建 VitePress
       - name: Build VitePress site
         run: |
           npm install
           npm run docs:build
 
-      - name: Deploy to server via rsync
+      # 4️⃣ 打包 dist 文件夹内容（只打包内容，不带 dist）
+      - name: Package dist content
+        run: |
+          cd docs/.vitepress/dist
+          tar czf /tmp/dist.tar.gz .   # 注意点：tar 当前目录的内容，不包含 dist 文件夹
+
+      # 5️⃣ 上传并解压到服务器
+      - name: Deploy to server via SSH
         uses: appleboy/ssh-action@v0.1.6
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -31,4 +41,8 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
           script: |
-            rsync -avz --exclude='.user.ini' --delete ./docs/.vitepress/dist/ /www/wwwroot/blog.astraluster.top/
+            mkdir -p /www/wwwroot/blog.astraluster.top
+            # 解压 tar 包到目标目录
+            tar xzf /tmp/dist.tar.gz -C /www/wwwroot/blog.astraluster.top
+            # 删除临时包
+            rm -f /tmp/dist.tar.gz
