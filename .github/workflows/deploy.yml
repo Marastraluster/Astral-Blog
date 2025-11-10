@@ -10,18 +10,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ 检出仓库代码
+      # 1️⃣ 检出代码
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 3️⃣ 将 dist 文件夹内容上传到服务器（覆盖复制，不删除）
+      # 2️⃣ 构建 VitePress（可选）
+      - name: Build VitePress site
+        run: |
+          npm install
+          npm run docs:build
+
+      # 3️⃣ 上传构建结果到服务器（只复制内容，覆盖同名文件，不删除目录）
       - name: Deploy to server
         uses: appleboy/scp-action@v0.1.5
         with:
-          host: ${{ secrets.SERVER_HOST }}               # GitHub Secrets 中的服务器域名/IP
-          username: ${{ secrets.SERVER_USER }}           # GitHub Secrets 中的用户名
-          key: ${{ secrets.SERVER_SSH_KEY }}             # GitHub Secrets 中的私钥
-          port: ${{ secrets.SERVER_PORT }}               # SSH 端口
-          source: "docs/.vitepress/dist/*"               # 只复制 dist 里的文件
-          target: "/www/wwwroot/blog.astraluster.top/"   # 复制到网站根目录（注意末尾 /）
-          rm: false                                      # 不删除目标目录，直接覆盖
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          source: "docs/.vitepress/dist/."                # ✅ 关键点：用 "." 表示目录内所有内容
+          target: "/www/wwwroot/blog.astraluster.top/"    # ✅ 注意以 / 结尾
+          rm: false                                       # 不清空目录（保留 .user.ini）
