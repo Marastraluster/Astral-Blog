@@ -1,0 +1,1 @@
+import{_ as e,c as t,o as a}from"./chunks/framework.W5ZyBR1w.js";const m=JSON.parse('{"title":"","description":"","frontmatter":{},"headers":[],"relativePath":"Notes/CTF.md","filePath":"Notes/CTF.md"}'),o={name:"Notes/CTF.md"};function s(r,c,n,p,_,d){return a(),t("div")}const f=e(o,[["render",s]]);export{m as __pageData,f as default};

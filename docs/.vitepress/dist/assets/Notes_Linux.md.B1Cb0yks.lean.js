@@ -1,0 +1,1 @@
+import{_ as e,c as t,o as a}from"./chunks/framework.W5ZyBR1w.js";const m=JSON.parse('{"title":"","description":"","frontmatter":{},"headers":[],"relativePath":"Notes/Linux.md","filePath":"Notes/Linux.md"}'),o={name:"Notes/Linux.md"};function n(s,r,c,i,p,_){return a(),t("div")}const f=e(o,[["render",n]]);export{m as __pageData,f as default};
