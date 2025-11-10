@@ -1,4 +1,4 @@
-name: Deploy Static VitePress Blog
+name: Deploy VitePress Blog
 
 on:
   push:
@@ -10,11 +10,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ 检出仓库
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      # 3️⃣ 上传 dist 内容到服务器目录（使用 rsync）
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Build VitePress site
+        run: |
+          npm install
+          npm run docs:build
+
       - name: Deploy to server via rsync
         uses: appleboy/ssh-action@v0.1.6
         with:
@@ -23,4 +31,4 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
           script: |
-            rsync -avz --exclude='.user.ini' --delete docs/.vitepress/dist/ /www/wwwroot/blog.astraluster.top/
+            rsync -avz --exclude='.user.ini' --delete ./docs/.vitepress/dist/ /www/wwwroot/blog.astraluster.top/
