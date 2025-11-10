@@ -1,48 +1,32 @@
-name: Deploy VitePress Blog
-
 on:
-  push:
-    branches:
+push:
+branches:
+      - master  # 监听 master 分支
       - master
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
+deploy:
+runs-on: ubuntu-latest
 
-    steps:
+steps:
       # 1️⃣ 检出代码
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      # 1️⃣ 检出仓库
+- name: Checkout repository
+uses: actions/checkout@v3
 
-      # 2️⃣ 设置 Node
-      - name: Setup Node
-        uses: actions/setup-node@v3
-        with:
-          node-version: 20
-
-      # 3️⃣ 构建 VitePress
-      - name: Build VitePress site
-        run: |
-          npm install
-          npm run docs:build
-
-      # 4️⃣ 打包 dist 文件夹内容（只打包内容，不带 dist）
-      - name: Package dist content
-        run: |
-          cd docs/.vitepress/dist
-          tar czf /tmp/dist.tar.gz .   # 注意点：tar 当前目录的内容，不包含 dist 文件夹
-
-      # 5️⃣ 上传并解压到服务器
-      - name: Deploy to server via SSH
-        uses: appleboy/ssh-action@v0.1.6
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          port: ${{ secrets.SERVER_PORT }}
-          script: |
-            mkdir -p /www/wwwroot/blog.astraluster.top
-            # 解压 tar 包到目标目录
-            tar xzf /tmp/dist.tar.gz -C /www/wwwroot/blog.astraluster.top
-            # 删除临时包
-            rm -f /tmp/dist.tar.gz
+      # 3️⃣ 上传构建结果到服务器（只复制内容，覆盖同名文件，不删除目录）
+      # 3️⃣ 上传 dist 内容到服务器目录
+- name: Deploy to server
+uses: appleboy/scp-action@v0.1.5
+with:
+host: ${{ secrets.SERVER_HOST }}
+username: ${{ secrets.SERVER_USER }}
+key: ${{ secrets.SERVER_SSH_KEY }}
+port: ${{ secrets.SERVER_PORT }}
+          source: "docs/.vitepress/dist/."                # ✅ 关键点：用 "." 表示目录内所有内容
+          target: "/www/wwwroot/blog.astraluster.top/"    # ✅ 注意以 / 结尾
+          rm: false                                       # 不清空目录（保留 .user.ini）
+          source: "docs/.vitepress/dist/**"                # ✅ 递归匹配 dist 内所有文件和文件夹
+          target: "/www/wwwroot/blog.astraluster.top/"    # ✅ 目标目录，注意末尾 /
+          rm: false                                       # ❌ 不删除目标目录，保留 .user.ini
+          strip_components: 2                             # ✅ 去掉 dist 上层目录层级
