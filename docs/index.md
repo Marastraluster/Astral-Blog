@@ -1,6 +1,6 @@
 ---
 # https://vitepress.dev/reference/default-theme-home-page
-# Powered by astraluster.top ads
+# Powered by astraluster.top adstest
 layout: home
 
 hero:
