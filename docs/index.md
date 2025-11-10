@@ -27,11 +27,11 @@ hero:
       link: /Notes/Web
 
 features:
-  - title: Feature A
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
-  - title: Feature B
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
-  - title: Feature C
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
+  - title: Love Programming
+    details: 
+  - title: Playing Triple-A Games
+    details: 
+  - title: Animation Amateur
+    details: 
 ---
 
