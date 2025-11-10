@@ -3,18 +3,17 @@ name: Deploy Static VitePress Blog
 on:
   push:
     branches:
-      - master  # 监听 master 分支
+      - master
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ 检出代码
+      # 1️⃣ 检出仓库
       - name: Checkout repository
         uses: actions/checkout@v3
-
-      # 3️⃣ 上传构建结果到服务器（只复制内容，覆盖同名文件，不删除目录）
+      # 3️⃣ 上传 dist 内容到服务器目录
       - name: Deploy to server
         uses: appleboy/scp-action@v0.1.5
         with:
@@ -22,6 +21,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
-          source: "docs/.vitepress/dist/."                # ✅ 关键点：用 "." 表示目录内所有内容
-          target: "/www/wwwroot/blog.astraluster.top/"    # ✅ 注意以 / 结尾
-          rm: false                                       # 不清空目录（保留 .user.ini）
+          source: "docs/.vitepress/dist/**"                # ✅ 递归匹配 dist 内所有文件和文件夹
+          target: "/www/wwwroot/blog.astraluster.top/"    # ✅ 目标目录，注意末尾 /
+          rm: false                                       # ❌ 不删除目标目录，保留 .user.ini
+          strip_components: 2                             # ✅ 去掉 dist 上层目录层级
