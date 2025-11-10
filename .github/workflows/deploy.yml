@@ -13,15 +13,14 @@ jobs:
       # 1️⃣ 检出仓库
       - name: Checkout repository
         uses: actions/checkout@v3
-      # 3️⃣ 上传 dist 内容到服务器目录
-      - name: Deploy to server
-        uses: appleboy/scp-action@v0.1.5
+
+      # 3️⃣ 上传 dist 内容到服务器目录（使用 rsync）
+      - name: Deploy to server via rsync
+        uses: appleboy/ssh-action@v0.1.6
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
-          source: "docs/.vitepress/dist/**"                # ✅ 递归匹配 dist 内所有文件和文件夹
-          target: "/www/wwwroot/blog.astraluster.top/"    # ✅ 目标目录，注意末尾 /
-          rm: false                                       # ❌ 不删除目标目录，保留 .user.ini
-          strip_components: 2                             # ✅ 去掉 dist 上层目录层级
+          script: |
+            rsync -avz --exclude='.user.ini' --delete docs/.vitepress/dist/ /www/wwwroot/blog.astraluster.top/
