@@ -14,12 +14,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2️⃣ 构建 VitePress（可选）
-      - name: Build VitePress site
-        run: |
-          npm install
-          npm run docs:build
-
       # 3️⃣ 上传构建结果到服务器（只复制内容，覆盖同名文件，不删除目录）
       - name: Deploy to server
         uses: appleboy/scp-action@v0.1.5
