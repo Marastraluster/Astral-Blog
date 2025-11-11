@@ -1,249 +1,188 @@
-# 🌐 使用哪吒探针与宝塔面板实现家中服务器公网访问（非内网穿透方案）
+# 🌐 家庭服务器公网访问方案（PVE + 哪吒探针 + 宝塔面板）
 
-**作者**：Martin Zeng  
-**系统环境**：  
-- VPS：Debian 系统  
-- 域名：`astraluster.top`  
-- 家庭服务器：待配置（将通过哪吒 Agent 接入）
-
----
-
-## 🧩 一、项目目标
-
-通过 **哪吒探针（Nezha Dashboard + Agent）** 与 **宝塔面板（BT Panel）** 实现如下架构：
-
-```
-https://home.astraluster.top
-   ↓
-[Nginx (宝塔面板)] ———> [哪吒探针 Dashboard (VPS)]
-   ↑
-[哪吒 Agent (家中服务器)]
-   ↑
-[家庭局域网服务，如 http://localhost:8080]
-```
-
-**实现目标：**
-- 无需使用内网穿透（如 frp、ngrok）
-- 家中服务器主动连接 VPS
-- VPS 提供统一的公网访问入口（域名 + SSL）
-- 所有流量可控、安全且稳定
+**作者：** Martin Zeng  
+**域名：** astraluster.top  
+**目标访问：** `home.astraluster.top` / `blog.home.astraluster.top`  
+**方案特点：** 无公网 IP，通过 VPS + 哪吐反向代理安全访问家中服务。  
 
 ---
 
-## ⚙️ 二、VPS 上安装哪吒探针面板
+## 🧩 一、总体架构
 
-### 1️⃣ 安装哪吒面板（Dashboard）
+```text
+                🌍 公网 (VPS)
+          ┌──────────────────────────┐
+          │  Debian + 宝塔面板        │
+          │  哪吒 Dashboard + 反代   │
+          │  SSL: home.astraluster.top │
+          └────────────┬─────────────┘
+                       │
+          🔒 哪吒Agent反向通道 (TCP:5555)
+                       │
+          ┌────────────┴─────────────┐
+          │ 家用服务器 (PVE虚拟化)    │
+          │ ├─ Windows 10 办公系统      │
+          │ └─ Ubuntu Server (宝塔+Agent) │
+          └──────────────────────────┘
+```
 
-在 Debian VPS 上执行：
+**工作原理：** 家中 Ubuntu Server 安装哪吒 Agent 主动连接 VPS，VPS Nginx + 宝塔面板提供 HTTPS 入口并反代至家庭服务，实现公网访问。
+
+---
+
+## ⚙️ 二、硬件配置
+
+| 项目 | 规格 |
+|------|------|
+| 主板 | X99 |
+| CPU | Intel Xeon E5-2666 v3（10核20线程） |
+| 内存 | 32 GB DDR3 ECC |
+| 显卡 | Intel DG1 独显（直通 Windows） |
+| 硬盘 | M.2 NVMe SSD 1TB |
+| 网络 | 千兆有线连接路由器 |
+| 虚拟化平台 | Proxmox VE 8.x |
+
+---
+
+## 🧮 三、PVE 虚拟机分配 (32GB内存)
+
+| 虚拟机 | 系统 | 内存 | 硬盘 | CPU | 用途 |
+|--------|------|------|------|-----|------|
+| Windows 10 | Windows 10/11 | 22 GB | 800 GB | 6 核/12 线程 | 前台办公，GPU DG1直通 |
+| Ubuntu Server | Ubuntu 22.04 LTS | 8 GB | 100 GB | 4 核 | 宝塔 + 哪吒Agent + 后台服务 |
+| PVE宿主 | - | 2 GB | - | 余量CPU | 系统管理与虚拟机监控 |
+
+---
+
+## 🖥️ 四、PVE 图形化配置指南
+
+### 1️⃣ 创建虚拟机
+
+1. 打开浏览器访问 PVE Web 界面：`https://<PVE-IP>:8006`
+2. 左侧节点 → 点击 **创建虚拟机 (Create VM)**
+3. 配置 Windows VM：
+   - ISO 文件：Windows 10/11
+   - 内存：22GB
+   - CPU：6 核/12 线程
+   - 硬盘：800GB
+   - 网络：桥接 vmbr0
+   - GPU：Intel DG1 直通
+4. 配置 Ubuntu VM：
+   - ISO 文件：Ubuntu Server 22.04
+   - 内存：8GB
+   - CPU：4 核
+   - 硬盘：100GB
+   - 网络：桥接 vmbr0
+
+### 2️⃣ 网络桥接 (vmbr0)
+
+- 节点 → 系统 → 网络 → 创建 → Linux Bridge
+- 名称：`vmbr0`
+- 绑定物理网卡
+- 设置静态 IP 或 DHCP
+- 保存并应用配置
+
+### 3️⃣ GPU 直通到 Windows
+
+- 节点 → 硬件 → PCI 设备 → 添加 Intel DG1 → 选择 Windows VM
+- 启动 Windows VM → 安装 Intel 驱动
+
+> 内存分配和 PCI 设备均可通过图形化界面操作，无需命令行。  
+
+---
+
+## 🐧 五、VPS 配置（Debian）
+
+### 1️⃣ 安装哪吒 Dashboard
 
 ```bash
 curl -L https://raw.githubusercontent.com/naiba/nezha/master/script/install.sh -o nezha.sh
 chmod +x nezha.sh
 sudo ./nezha.sh
 ```
-
-选择：
-```
-1) 安装面板 (Dashboard)
-```
-
-安装完成后输出：
-- 管理后台访问端口（默认 `8008`）
-- 登录账户与密码
-- 配置文件路径：`/opt/nezha/dashboard/config.yaml`
-
----
-
-### 2️⃣ 启用反向代理功能
-
-编辑配置文件：
-
-```bash
-nano /opt/nezha/dashboard/config.yaml
-```
-
-修改或添加：
-
+- 选择安装 Dashboard
+- 编辑 `/opt/nezha/dashboard/config.yaml`:
 ```yaml
 reverse:
   enable: true
   listen_port: 5555
 ```
+- 重启：`systemctl restart nezha-dashboard`
 
-保存并退出，重启哪吒面板：
-
-```bash
-systemctl restart nezha-dashboard
-```
-
----
-
-## 🧱 三、在 VPS 上安装宝塔面板
-
-### 1️⃣ 安装宝塔面板（BT Panel）
+### 2️⃣ 安装宝塔面板
 
 ```bash
 wget -O install.sh http://download.bt.cn/install/install_panel.sh && bash install.sh
 ```
-
-安装后系统会显示：
-- 宝塔访问地址（如 `http://<VPS_IP>:8888`）
-- 登录账号和密码
-
-用浏览器访问并登录宝塔后台。
+- 添加站点：`home.astraluster.top`
+- 配置 SSL（Let's Encrypt）
+- 配置反向代理：目标 URL → `http://127.0.0.1:8008`
+- 访问：`https://home.astraluster.top/admin`
 
 ---
 
-### 2️⃣ 添加网站与 SSL 证书
+## 🏠 六、Ubuntu Server 配置
 
-1. 打开「网站」 → 「添加站点」  
-   填写以下信息：
-   - **域名**：`home.astraluster.top`
-   - **根目录**：`/www/wwwroot/home.astraluster.top`
-   - 勾选「创建网站」
-
-2. 打开网站设置 → 「SSL」
-   - 选择「Let's Encrypt」
-   - 勾选「自动续签」
-   - 域名填写 `home.astraluster.top`
-   - 点击「申请证书」
-
-申请成功后，HTTPS 自动启用。
-
----
-
-### 3️⃣ 配置反向代理（Nginx）
-
-1. 打开宝塔 → 「网站」 → 选择 `home.astraluster.top` → 「反向代理」
-2. 点击「添加反向代理」：
-   - **代理名称**：`nezha`
-   - **目标 URL**：`http://127.0.0.1:8008`
-   - 勾选「启用反向代理」
-3. 保存并应用。
-
-此时访问：
-
-```
-https://home.astraluster.top
+### 1️⃣ 安装宝塔面板
+```bash
+wget -O install.sh http://download.bt.cn/install/install_panel.sh && bash install.sh
 ```
 
-即可打开哪吒探针面板。  
-（后台路径 `/admin`）
-
----
-
-## 🏠 四、在家中服务器部署哪吒 Agent
-
-当家庭服务器可用后，在终端中执行：
-
+### 2️⃣ 安装哪吒 Agent
 ```bash
 curl -L https://raw.githubusercontent.com/naiba/nezha/master/script/install.sh -o nezha.sh
 chmod +x nezha.sh
 sudo ./nezha.sh
 ```
+- 服务器地址：`astraluster.top`
+- 端口：5555
+- Token：从 VPS 哪吒面板获取
 
-选择：
-```
-2) 安装Agent
-```
-
-输入以下信息：
-- **服务器地址**：`astraluster.top`
-- **端口**：`5555`
-- **节点 Token**：从哪吒面板后台复制生成
-
-安装完成后，Agent 会自动连接到 VPS。
-在哪吒面板的「节点管理」中可看到该节点显示为“在线”。
+> 节点连接成功后在面板显示在线
 
 ---
 
-## 🔄 五、配置反代通道（哪吒面板操作）
+## 🌐 七、设置反向代理子域
 
-1. 打开哪吒面板后台 → 「节点管理」
-2. 找到刚上线的家中服务器节点
-3. 点击「反向代理」 → 「添加反代」
-4. 按下表填写：
+- 哪吒面板 → 节点管理 → 家中 Ubuntu 节点 → 反向代理 → 添加
 
-| 字段 | 示例值 | 说明 |
-|------|----------|------|
-| 名称 | homeweb | 自定义名称 |
-| 绑定域名 | `blog.astraluster.top` | 为家中服务创建子域名 |
-| 路径 | `/` | 根路径 |
-| 目标节点 | 家中服务器 | 选择对应节点 |
-| 本地服务地址 | `http://127.0.0.1:8080` | 家中实际服务端口 |
+| 字段 | 示例 |
+|------|------|
+| 名称 | blog |
+| 域名 | blog.home.astraluster.top |
+| 本地地址 | http://127.0.0.1:8080 |
+| 路径 | / |
 
-5. 在域名服务商中添加 DNS 记录：
-
-```
-blog.astraluster.top → VPS公网IP
-```
-
-完成后访问：
-```
-https://blog.astraluster.top
-```
-即可访问家中服务器提供的网页。
+- DNS 设置：`blog.home.astraluster.top → VPS 公网 IP`
+- 访问：`https://blog.home.astraluster.top`
 
 ---
 
-## 🔐 六、安全与维护建议
+## 🔐 八、安全与维护
 
-| 安全项 | 建议 |
-|--------|------|
-| 哪吒面板端口 | 仅允许本地访问 (`127.0.0.1`)，通过宝塔反代访问 |
-| VPS 防火墙 | 放行端口：`443`（HTTPS）、`5555`（Agent 通道） |
-| SSL 证书 | 使用宝塔 Let's Encrypt 自动续签 |
-| Token 保密 | 不公开节点密钥 |
-| 系统更新 | 定期执行 `apt update && apt upgrade` |
-| 日志清理 | 定期清理 `/opt/nezha/dashboard/logs/` |
-
----
-
-## 🧰 七、目录与端口结构汇总
-
-| 服务 | 运行位置 | 端口 | 路径 |
-|------|------------|--------|------|
-| 哪吒面板 Dashboard | VPS | 8008 | `/opt/nezha/dashboard/` |
-| 哪吒反代通道 | VPS | 5555 | 配置于 `config.yaml` |
-| 宝塔 Nginx | VPS | 443 | `/www/wwwroot/home.astraluster.top` |
-| 哪吒 Agent | 家中服务器 | 出站连接 | `/opt/nezha/agent/` |
-| 家中 Web 服务 | 家中服务器 | 8080 | 本地网站或应用 |
+| 项目 | 建议 |
+|------|------|
+| VPS 防火墙 | 仅开放 443/5555 端口 |
+| 哪吒端口 | Dashboard 仅本地访问，通过 Nginx 反代 |
+| 宝塔面板 | 修改默认端口，启用登录验证 |
+| 系统更新 | 每月执行 apt update && upgrade |
+| Token | 保密 |
 
 ---
 
-## 🪄 八、后续拓展建议
+## 🧠 九、后续拓展
 
-- ✅ 为不同服务添加多个子域名：  
-  - `nas.astraluster.top` → 家中 NAS  
-  - `media.astraluster.top` → 家中影视服务器  
-  - `blog.astraluster.top` → 个人网站  
-
-- ✅ 结合 Docker Compose 管理家中多服务，统一接入哪吒。
-- ✅ 使用 Cloudflare 或 DNSPod 提升域名解析速度与安全性。
+- 多子域服务：`nas.home.astraluster.top`、`media.home.astraluster.top`
+- Ubuntu 使用 Docker 管理多服务
+- 配合 Cloudflare 提升安全与解析速度
+- PVE Snapshot 定期备份 VM
 
 ---
 
-## 📘 总结
+## 📘 十、总结
 
-通过 **哪吒探针（自建反向代理） + 宝塔面板（SSL + Nginx 管理）**，  
-你可以轻松让家中服务器拥有公网可访问的网站，无需购买固定 IP、无需第三方穿透。
+- **32GB 内存分配**：Windows 22GB / Ubuntu 8GB / PVE 2GB
+- **PVE 图形化操作**：创建 VM、桥接网络、GPU 直通、内存调整均通过 Web 界面完成
+- **哪吒 + 宝塔反代**：实现家庭服务器公网访问，无需公网 IP，支持多子域
+- **可扩展性**：多 VM、多服务、多子域、容器管理均可扩展
 
-该方案具有：
-- 🧩 **自控性高**（完全掌握链路与数据）  
-- 🧠 **部署简单**（宝塔面板图形化操作）  
-- 🔒 **安全稳定**（出站连接 + HTTPS）  
-- 🌐 **可拓展性强**（多节点、多服务接入）
-
----
-
-**下一步建议：**
-等你的家庭服务器配置完成后，可以：
-1. 启动 Agent 并注册到面板；
-2. 配置反代子域名；
-3. 我可以帮你生成自动化命令与备份脚本。
-
----
-
-> 📄 版本号：v1.0  
-> 🗓️ 更新日期：2025-11-10  
-> 🧑‍💻 作者：Martin Zeng
